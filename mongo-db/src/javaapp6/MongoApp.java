@@ -1,83 +1,64 @@
 package javaapp6;
 
 import com.mongodb.client.ClientSession;
+import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
-import com.mongodb.client.TransactionBody;
-import static com.mongodb.client.model.Filters.eq;
-import static com.mongodb.client.model.Filters.or;
-import static com.mongodb.client.model.Updates.addToSet;
-import static com.mongodb.client.model.Updates.addEachToSet;
-
-import org.bson.Document;
-
-import java.util.Arrays;
+import com.mongodb.client.MongoIterable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.bson.Document;
 
 public class MongoApp {
-    private static MongoClient c = null;
+    private static MongoClient mongoClient = null;
     private static MongoDatabase mongodb = null;
-    private static ClientSession s = null;
-    private static MongoCollection<Document> students = null, courses = null;
-
+    private static ClientSession clientSession = null;
+    
     public static void main(String[] args) {
         Logger.getLogger("org.mongodb.driver").setLevel(Level.SEVERE);
         
         try {
             // NOTE : Setup !
-            c = MongoClients.create("mongodb://localhost:27017");          
-            mongodb = c.getDatabase("mongodbapp");          
-            s = c.startSession();
-
-            students = mongodb.getCollection("students");
-            courses = mongodb.getCollection("courses");
-
-            s.startTransaction();
-
-            students.updateOne(s,
-                    eq("_id", 9),
-                    addEachToSet("courses", Arrays.asList(1, 2))
-            );
-
-            courses.updateMany(s,
-                    or(eq("_id", 1), eq("_id", 2)),
-                    addToSet("students", 9)
-            );
-
-            s.commitTransaction();
-            //s.abortTransaction();         
-
+            mongoClient = MongoClients.create("mongodb+srv://Cluster33172:Q2lddGV8XndS@cluster33172.fj0jgm5.mongodb.net/?retryWrites=true&w=majority");            
+            mongodb = mongoClient.getDatabase("mongodbapp");          
+            clientSession = mongoClient.startSession();
             
-            TransactionBody tB = new TransactionBody<String>() {
-                @Override
-                public String execute() {
-                    students.updateOne(s,
-                        eq("_id", 9),
-                        addEachToSet("courses", Arrays.asList(1, 2))
-                    );
+            BuildData.AddDataToMongoDB(clientSession, mongodb);
+            
+            clientSession.commitTransaction();
+            
+            System.out.println("\nCompleted Data Load to your " + mongodb.getName() + " database\n");
+            
+            MongoIterable<String> collectionList = mongodb.listCollectionNames();
+                   
+            for(String collection: collectionList) {
+                getAllDocuments(mongodb.getCollection(collection));
+            }
 
-                    courses.updateMany(s,
-                        or(eq("_id", 1), eq("_id", 2)),
-                        addToSet("students", 9)
-                    );
-
-                    return ":)";
-                }
-            };
-
-            s.withTransaction(tB); 
-
-            System.out.println("Bye Bye :)");
         }
         catch (Exception e) {
             System.err.println(e.getMessage());
+            clientSession.abortTransaction();         
         }
         finally {
-            s.close();
-            c.close();
+            clientSession.close();
+            mongoClient.close();
         }
     }
+    
+    private static void getAllDocuments(MongoCollection<Document> col) {
+        System.out.println("\nFetching all documents from the collection[" + col.getNamespace().getCollectionName() + "]:\n");
+ 
+        // Performing a read operation on the collection.
+        FindIterable<Document> fi = col.find();
+        try (MongoCursor<Document> cursor = fi.iterator()) {
+            while(cursor.hasNext()) {               
+                System.out.println(cursor.next().toJson());
+            }
+        }
+    }
+    
 }
