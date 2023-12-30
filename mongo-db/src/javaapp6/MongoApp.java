@@ -22,10 +22,8 @@ public class MongoApp {
         
         try {
             // NOTE : Setup !
-            //mongoClient = MongoClients.create("mongodb+srv://Cluster33172:Q2lddGV8XndS@cluster33172.fj0jgm5.mongodb.net/?retryWrites=true&w=majority");   
             mongoClient = MongoClients.create("mongodb+srv://ngall:Testing123!@cluster0.ru1ueu9.mongodb.net/?retryWrites=true&w=majority"); 
                                                 
-
             mongodb = mongoClient.getDatabase("mongodbapp");          
             clientSession = mongoClient.startSession();
             
